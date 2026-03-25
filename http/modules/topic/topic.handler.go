@@ -2,13 +2,27 @@ package topic
 
 import (
 	"encoding/json"
+	"errors"
 	"gomqtt/http/dto"
 	"gomqtt/http/modules/user"
 	"gomqtt/variable"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
+
+// disconnectSubscribers force disconnects all MQTT clients subscribed to the given topic.
+func disconnectSubscribers(topicName string) {
+	subscribers := variable.MqttTopicSubs.GetSubscribers(topicName)
+	for _, cl := range subscribers {
+		if cl.Closed() {
+			continue
+		}
+		log.Printf("⚡ [DISCONNECT] force disconnect client_id=%s due to topic '%s' changed\n", cl.ID, topicName)
+		cl.Stop(errors.New("topic configuration changed"))
+	}
+}
 
 type CreateTopicRequest struct {
 	Type    string   `json:"type"`
@@ -112,6 +126,8 @@ func Update(c *fiber.Ctx) error {
 		return dto.NotFound(c, "Topic entry not found", nil)
 	}
 
+	oldName := entry.Name
+
 	if req.Type != "pub_to_sub" && req.Type != "pub_to_api" && req.Type != "api_to_sub" {
 		return dto.BadRequest(c, "Type must be 'pub_to_sub', 'pub_to_api', or 'api_to_sub'", nil)
 	}
@@ -164,6 +180,12 @@ func Update(c *fiber.Ctx) error {
 		return dto.InternalServerError(c, "Failed to update topic entry", nil)
 	}
 
+	// force disconnect clients subscribed to old and new topic name
+	disconnectSubscribers(oldName)
+	if req.Name != oldName {
+		disconnectSubscribers(req.Name)
+	}
+
 	return dto.OK(c, "Topic entry updated successfully", entry)
 }
 
@@ -179,9 +201,13 @@ func Delete(c *fiber.Ctx) error {
 		return dto.NotFound(c, "Topic entry not found", nil)
 	}
 
+	topicName := entry.Name
 	if err := variable.Db.Delete(&entry).Error; err != nil {
 		return dto.InternalServerError(c, "Failed to delete topic entry", nil)
 	}
+
+	// force disconnect clients subscribed to deleted topic
+	disconnectSubscribers(topicName)
 
 	return dto.OK(c, "Topic entry deleted successfully", nil)
 }

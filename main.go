@@ -5,6 +5,7 @@ import (
 	"gomqtt/gomqtt"
 	"gomqtt/http"
 	"gomqtt/http/database"
+	"gomqtt/variable"
 	"log"
 	"os"
 	"os/signal"
@@ -22,6 +23,7 @@ func main() {
 	// RUN MQTT SERVER (non-blocking)
 	// ================================
 	mqtt := gomqtt.Start()
+	variable.MqttServer = mqtt
 
 	// ================================
 	// RUN HTTP SERVER (non-blocking)

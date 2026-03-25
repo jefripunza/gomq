@@ -66,7 +66,7 @@ func validateTopicAccess(username, password, topicName string) error {
 	if result.UserID == nil || *result.UserID == "" {
 		return nil
 	}
-	// log.Printf("topic has credential: %s", *result.UserID)
+	// log.Printf("🔍 [DEBUG] topic '%s' has credential: user_id=%s", topicName, *result.UserID)
 
 	// topic has credential, validate user match
 	var count int64
@@ -113,6 +113,10 @@ func (h *MiddlewareHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
 // ON DISCONNECT
 // --------------------------------
 func (h *MiddlewareHook) OnDisconnect(cl *mqtt.Client, err error, expire bool) {
+	// remove client from all topic subscriptions
+	variable.MqttTopicSubs.UnsubscribeAll(cl.ID)
+	delete(clients, cl.ID)
+
 	if err != nil {
 		log.Printf("❌ [DISCONNECT] client_id=%s reason=%s expire=%v\n", cl.ID, err.Error(), expire)
 	} else {
@@ -146,6 +150,8 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 			sub.Filter,
 			sub.Qos,
 		)
+		// track subscription in MqttTopicSubs
+		variable.MqttTopicSubs.Subscribe(sub.Filter, cl.ID, cl)
 		validFilters = append(validFilters, sub)
 	}
 
@@ -162,6 +168,8 @@ func (h *MiddlewareHook) OnUnsubscribe(cl *mqtt.Client, pk packets.Packet) packe
 			cl.ID,
 			sub.Filter,
 		)
+		// remove subscription from MqttTopicSubs
+		variable.MqttTopicSubs.Unsubscribe(sub.Filter, cl.ID)
 	}
 	return pk
 }
@@ -180,7 +188,9 @@ func (h *MiddlewareHook) OnPublish(cl *mqtt.Client, pk packets.Packet) (packets.
 	if clientInfo.Username != "" && clientInfo.Password != "" {
 		if err := validateTopicAccess(clientInfo.Username, clientInfo.Password, pk.TopicName); err != nil {
 			log.Printf("❌ [PUBLISH] client_id=%s topic access denied: %s\n", cl.ID, err.Error())
-			return pk, fmt.Errorf("topic access denied")
+			// pk.Payload = []byte(``) // empty payload
+			// pk.FixedHeader.Retain = false
+			return packets.Packet{}, nil // fmt.Errorf("topic access denied")
 		}
 	}
 
