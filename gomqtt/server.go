@@ -1,9 +1,9 @@
-package gomq
+package gomqtt
 
 import (
-	"gomq/middlewares"
+	"gomqtt/environment"
+	"gomqtt/middlewares"
 	"log"
-	"os"
 
 	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/hooks/auth"
@@ -11,10 +11,7 @@ import (
 )
 
 func Start() *mqtt.Server {
-	mqtt_port := os.Getenv("MQTT_PORT")
-	if mqtt_port == "" {
-		mqtt_port = "1883"
-	}
+	mqtt_port := environment.GetMqttPort()
 
 	// ================================
 	// CREATE MQTT SERVER
@@ -37,7 +34,7 @@ func Start() *mqtt.Server {
 	}
 
 	tcp := listeners.NewTCP(listeners.Config{
-		ID:      "gomq",
+		ID:      "gomqtt",
 		Address: ":" + mqtt_port,
 	})
 	if err := server.AddListener(tcp); err != nil {

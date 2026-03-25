@@ -2,32 +2,20 @@ package main
 
 import (
 	"context"
-	"gomq/gomq"
-	"gomq/http"
+	"gomqtt/gomqtt"
+	"gomqtt/http"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/joho/godotenv"
 )
-
-func init() {
-	// ================================
-	// LOAD ENV
-	// ================================
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ No .env file found, using system env")
-	}
-
-}
 
 func main() {
 	// ================================
 	// RUN MQTT SERVER (non-blocking)
 	// ================================
-	mqtt := gomq.Start()
+	mqtt := gomqtt.Start()
 
 	// ================================
 	// RUN HTTP SERVER (non-blocking)
