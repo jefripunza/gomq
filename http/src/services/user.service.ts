@@ -25,6 +25,20 @@ export const userService = {
     );
     return response.data;
   },
+  update: async (
+    id: string,
+    payload: {
+      title?: string;
+      username?: string;
+      password?: string;
+    },
+  ) => {
+    const response = await satellite.put<Response<User>>(
+      `/api/user/update/${encodeURIComponent(id)}`,
+      payload,
+    );
+    return response.data;
+  },
   remove: async (id: string) => {
     const response = await satellite.delete<Response<null>>(
       `/api/user/remove/${encodeURIComponent(id)}`,

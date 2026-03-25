@@ -48,7 +48,7 @@ const navItems: NavItem[] = [
     icon: HiOutlineCollection,
   },
   {
-    labelId: "API Key",
+    labelId: "Kunci API",
     labelEn: "API Key",
     path: "/app/apikey",
     icon: HiOutlineKey,

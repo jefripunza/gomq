@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import DialogDelete from "@/components/DialogDelete";
 import {
   topicService,
   type Topic,
@@ -499,45 +500,23 @@ export default function TopicPage() {
       </div>
 
       {/* Delete confirmation dialog */}
-      <Dialog
+      <DialogDelete
         open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-      >
-        <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>
-              {language("Hapus topik?", "Delete topic?")}
-            </DialogTitle>
-            <DialogDescription>
-              {deleteTarget
-                ? language(
-                    `Ini akan menghapus topik "${deleteTarget.name}" secara permanen. Tindakan ini tidak dapat dibatalkan.`,
-                    `This will permanently delete the topic "${deleteTarget.name}". This action cannot be undone.`,
-                  )
-                : language(
-                    "Tindakan ini tidak dapat dibatalkan.",
-                    "This action cannot be undone.",
-                  )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="pt-2">
-            <button
-              type="button"
-              onClick={() => setDeleteTarget(null)}
-              className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
-            >
-              {language("Batal", "Cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="px-6 py-2.5 bg-neon-red/80 hover:bg-neon-red disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all"
-            >
-              {language("Hapus", "Delete")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title={language("Hapus topik?", "Delete topic?")}
+        description={
+          deleteTarget
+            ? language(
+                `Ini akan menghapus topik "${deleteTarget.name}" secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                `This will permanently delete the topic "${deleteTarget.name}". This action cannot be undone.`,
+              )
+            : language(
+                "Tindakan ini tidak dapat dibatalkan.",
+                "This action cannot be undone.",
+              )
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleRemove}
+      />
     </div>
   );
 }

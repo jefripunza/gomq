@@ -55,6 +55,51 @@ func Create(c *fiber.Ctx) error {
 	return dto.OK(c, "User entry created successfully", entry)
 }
 
+type UpdateUserRequest struct {
+	Title    string `json:"title"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func Update(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return dto.BadRequest(c, "ID is required", nil)
+	}
+
+	var req UpdateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return dto.BadRequest(c, "Invalid request body", nil)
+	}
+
+	var entry User
+	if err := variable.Db.Where("id = ?", id).First(&entry).Error; err != nil {
+		return dto.NotFound(c, "User entry not found", nil)
+	}
+
+	// Check if new username already exists (if changed)
+	if req.Username != "" && req.Username != entry.Username {
+		var existing User
+		if err := variable.Db.Where("username = ? AND id != ?", req.Username, id).First(&existing).Error; err == nil {
+			return dto.BadRequest(c, "Username already exists", nil)
+		}
+		entry.Username = req.Username
+	}
+
+	if req.Title != "" {
+		entry.Title = req.Title
+	}
+	if req.Password != "" {
+		entry.Password = req.Password
+	}
+
+	if err := variable.Db.Save(&entry).Error; err != nil {
+		return dto.InternalServerError(c, "Failed to update user entry", nil)
+	}
+
+	return dto.OK(c, "User entry updated successfully", entry)
+}
+
 func Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {

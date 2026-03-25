@@ -37,6 +37,10 @@ var clients = make(map[string]ClientInfo)
 // ON CONNECT
 // --------------------------------
 func (h *MiddlewareHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
+	// check if username and password not empty
+	if string(pk.Connect.Username) != "" && string(pk.Connect.Password) != "" {
+		// check if username and password is ok
+	}
 	log.Printf("🔌 [CONNECT] client_id=%s username=%s password=%s remote_addr=%s\n",
 		cl.ID,
 		string(pk.Connect.Username),

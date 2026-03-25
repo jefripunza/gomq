@@ -4,8 +4,9 @@ import {
   HiOutlineTrash,
   HiOutlineEye,
   HiOutlineEyeOff,
+  HiOutlinePencil,
   HiClipboardCopy,
-  HiOutlineClipboardCopy,
+  HiCheck,
 } from "react-icons/hi";
 import {
   Dialog,
@@ -14,8 +15,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import DialogDelete from "@/components/DialogDelete";
 import { userService, type User } from "@/services/user.service";
 import { useLanguageStore } from "@/stores/languageStore";
 import { formatDate } from "@/utils/datetime";
@@ -28,22 +29,40 @@ export default function UserPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [editTarget, setEditTarget] = useState<User | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(
     new Set(),
   );
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Form state
+  // Form state (shared for add/edit)
   const [formTitle, setFormTitle] = useState("");
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
+
+  const isEditMode = editTarget !== null;
 
   const resetForm = () => {
     setFormTitle("");
     setFormUsername("");
     setFormPassword("");
+    setEditTarget(null);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setIsFormOpen(true);
+  };
+
+  const openEdit = (user: User) => {
+    setEditTarget(user);
+    setFormTitle(user.title);
+    setFormUsername(user.username);
+    setFormPassword("");
+    setIsFormOpen(true);
   };
 
   const fetchUsers = useCallback(async () => {
@@ -62,20 +81,28 @@ export default function UserPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await userService.create({
-        title: formTitle.trim(),
-        username: formUsername.trim(),
-        password: formPassword,
-      });
+      if (isEditMode) {
+        await userService.update(editTarget.id, {
+          title: formTitle.trim(),
+          username: formUsername.trim(),
+          ...(formPassword && { password: formPassword }),
+        });
+      } else {
+        await userService.create({
+          title: formTitle.trim(),
+          username: formUsername.trim(),
+          password: formPassword,
+        });
+      }
       resetForm();
-      setIsAddOpen(false);
+      setIsFormOpen(false);
       fetchUsers();
     } catch (err) {
-      console.error("Failed to create user:", err);
+      console.error("Failed to save user:", err);
     } finally {
       setIsSaving(false);
     }
@@ -104,9 +131,13 @@ export default function UserPage() {
     });
   };
 
-  const copyText = async (value: string) => {
+  const copyText = async (value: string, key: string) => {
     try {
       await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
+      setTimeout(() => {
+        setCopiedKey((prev) => (prev === key ? null : prev));
+      }, 1200);
     } catch (err) {
       console.error("Failed to copy text:", err);
     }
@@ -127,116 +158,23 @@ export default function UserPage() {
             )}
           </p>
         </div>
-        <Dialog
-          open={isAddOpen}
-          onOpenChange={(o) => {
-            setIsAddOpen(o);
-            if (!o) resetForm();
-          }}
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25 shrink-0"
         >
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25 shrink-0">
-              <HiOutlinePlus className="w-4 h-4" />
-              <span>{language("Tambah Pengguna", "Add User")}</span>
-            </button>
-          </DialogTrigger>
-          <DialogContent
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {language("Tambah Pengguna Baru", "Add New User")}
-              </DialogTitle>
-              <DialogDescription>
-                {language(
-                  "Buat kredensial akses baru untuk topik MQTT.",
-                  "Create new access credentials for MQTT topics.",
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAdd} className="space-y-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                  {language("Judul", "Title")}
-                  <span className="text-neon-red ml-1">*</span>
-                </label>
-                <input
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder={language(
-                    "contoh: Sensor Gateway",
-                    "e.g. Sensor Gateway",
-                  )}
-                  className={inputClass}
-                  required
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                  Username
-                  <span className="text-neon-red ml-1">*</span>
-                </label>
-                <input
-                  value={formUsername}
-                  onChange={(e) => setFormUsername(e.target.value)}
-                  placeholder={language(
-                    "contoh: sensor_gw_01",
-                    "e.g. sensor_gw_01",
-                  )}
-                  className={`${inputClass} font-mono`}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                  Password
-                  <span className="text-neon-red ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`${inputClass} font-mono`}
-                  required
-                />
-              </div>
-              <DialogFooter className="pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddOpen(false);
-                    resetForm();
-                  }}
-                  className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
-                >
-                  {language("Batal", "Cancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-accent-500 hover:bg-accent-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25"
-                >
-                  {isSaving
-                    ? language("Menyimpan...", "Saving...")
-                    : language("Tambah", "Add")}
-                </button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+          <HiOutlinePlus className="w-4 h-4" />
+          <span>{language("Tambah Pengguna", "Add User")}</span>
+        </button>
       </div>
 
       {/* User list */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {isLoading ? (
-          <div className="flex justify-center py-12">
+          <div className="col-span-full flex justify-center py-12">
             <div className="w-5 h-5 border-2 border-dark-400/30 border-t-dark-300 rounded-full animate-spin" />
           </div>
         ) : users.length === 0 ? (
-          <div className="text-sm text-dark-300 font-mono bg-dark-800/40 border border-dark-600/30 rounded-xl p-8 text-center">
+          <div className="col-span-full text-sm text-dark-300 font-mono bg-dark-800/40 border border-dark-600/30 rounded-xl p-8 text-center">
             {language(
               "Belum ada pengguna. Tambahkan pengguna pertama Anda.",
               "No users yet. Add your first user.",
@@ -255,23 +193,29 @@ export default function UserPage() {
                   </p>
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-dark-400 w-16 shrink-0">
-                        Username
+                      <span className="text-dark-400 w-24 shrink-0">
+                        {language("Nama Pengguna", "Username")}
                       </span>
                       <span className="font-mono text-dark-200">
                         {user.username}
                       </span>
                       <button
-                        onClick={() => copyText(user.username)}
-                        className="text-[11px] font-medium text-dark-400 hover:text-foreground transition-colors"
+                        onClick={() =>
+                          copyText(user.username, `${user.id}-username`)
+                        }
+                        className="text-dark-400 hover:text-foreground transition-colors"
                         title={language("Salin username", "Copy username")}
                       >
-                        <HiOutlineClipboardCopy className="w-4 h-4" />
+                        {copiedKey === `${user.id}-username` ? (
+                          <HiCheck className="w-4 h-4 text-neon-green" />
+                        ) : (
+                          <HiClipboardCopy className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-dark-400 w-16 shrink-0">
-                        Password
+                      <span className="text-dark-400 w-24 shrink-0">
+                        {language("Kata Sandi", "Password")}
                       </span>
                       <span className="font-mono text-dark-200">
                         {visiblePasswords.has(user.id)
@@ -289,71 +233,177 @@ export default function UserPage() {
                         )}
                       </button>
                       <button
-                        onClick={() => copyText(user.password)}
-                        className="text-[11px] font-medium text-dark-400 hover:text-foreground transition-colors"
+                        onClick={() =>
+                          copyText(user.password, `${user.id}-password`)
+                        }
+                        className="text-dark-400 hover:text-foreground transition-colors"
                         title={language("Salin password", "Copy password")}
                       >
-                        <HiOutlineClipboardCopy className="w-4 h-4" />
+                        {copiedKey === `${user.id}-password` ? (
+                          <HiCheck className="w-4 h-4 text-neon-green" />
+                        ) : (
+                          <HiClipboardCopy className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-dark-400 font-mono mt-2">
-                    {formatDate(user.created_at)}
-                  </p>
                 </div>
-                <button
-                  onClick={() => setDeleteTarget(user)}
-                  className="p-2 rounded-lg text-dark-400 hover:text-neon-red hover:bg-neon-red/5 transition-all shrink-0"
-                  title={language("Hapus", "Delete")}
-                >
-                  <HiOutlineTrash className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    onClick={() => openEdit(user)}
+                    className="p-2 rounded-lg text-dark-400 hover:text-accent-400 hover:bg-accent-500/5 transition-all"
+                    title={language("Edit", "Edit")}
+                  >
+                    <HiOutlinePencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(user)}
+                    className="p-2 rounded-lg text-dark-400 hover:text-neon-red hover:bg-neon-red/5 transition-all"
+                    title={language("Hapus", "Delete")}
+                  >
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Add/Edit dialog */}
       <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        open={isFormOpen}
+        onOpenChange={(o) => {
+          setIsFormOpen(o);
+          if (!o) resetForm();
+        }}
       >
-        <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
-              {language("Hapus pengguna?", "Delete user?")}
+              {isEditMode
+                ? language("Edit Pengguna", "Edit User")
+                : language("Tambah Pengguna Baru", "Add New User")}
             </DialogTitle>
             <DialogDescription>
-              {deleteTarget
+              {isEditMode
                 ? language(
-                    `Ini akan menghapus pengguna "${deleteTarget.title}" secara permanen. Tindakan ini tidak dapat dibatalkan.`,
-                    `This will permanently delete the user "${deleteTarget.title}". This action cannot be undone.`,
+                    "Ubah kredensial pengguna. Kosongkan password jika tidak ingin mengubahnya.",
+                    "Update user credentials. Leave password empty to keep it unchanged.",
                   )
                 : language(
-                    "Tindakan ini tidak dapat dibatalkan.",
-                    "This action cannot be undone.",
+                    "Buat kredensial akses baru untuk topik MQTT.",
+                    "Create new access credentials for MQTT topics.",
                   )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-2">
-            <button
-              type="button"
-              onClick={() => setDeleteTarget(null)}
-              className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
-            >
-              {language("Batal", "Cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="px-6 py-2.5 bg-neon-red/80 hover:bg-neon-red disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all"
-            >
-              {language("Hapus", "Delete")}
-            </button>
-          </DialogFooter>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                {language("Judul", "Title")}
+                <span className="text-neon-red ml-1">*</span>
+              </label>
+              <input
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                placeholder={language(
+                  "contoh: Sensor Gateway",
+                  "e.g. Sensor Gateway",
+                )}
+                className={inputClass}
+                required
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                Username
+                <span className="text-neon-red ml-1">*</span>
+              </label>
+              <input
+                value={formUsername}
+                onChange={(e) => setFormUsername(e.target.value)}
+                placeholder={language(
+                  "contoh: sensor_gw_01",
+                  "e.g. sensor_gw_01",
+                )}
+                className={`${inputClass} font-mono`}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                Password
+                {isEditMode ? (
+                  <span className="text-dark-400 text-xs ml-1">
+                    (
+                    {language(
+                      "kosongkan jika tidak diubah",
+                      "leave empty to keep",
+                    )}
+                    )
+                  </span>
+                ) : (
+                  <span className="text-neon-red ml-1">*</span>
+                )}
+              </label>
+              <input
+                type="password"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                placeholder="••••••••"
+                className={`${inputClass} font-mono`}
+                required={!isEditMode}
+              />
+            </div>
+            <DialogFooter className="pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFormOpen(false);
+                  resetForm();
+                }}
+                className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
+              >
+                {language("Batal", "Cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-accent-500 hover:bg-accent-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25"
+              >
+                {isSaving
+                  ? language("Menyimpan...", "Saving...")
+                  : isEditMode
+                    ? language("Simpan", "Save")
+                    : language("Tambah", "Add")}
+              </button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <DialogDelete
+        open={!!deleteTarget}
+        title={language("Hapus pengguna?", "Delete user?")}
+        description={
+          deleteTarget
+            ? language(
+                `Ini akan menghapus pengguna "${deleteTarget.title}" secara permanen. Tindakan ini tidak dapat dibatalkan.`,
+                `This will permanently delete the user "${deleteTarget.title}". This action cannot be undone.`,
+              )
+            : language(
+                "Tindakan ini tidak dapat dibatalkan.",
+                "This action cannot be undone.",
+              )
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleRemove}
+      />
     </div>
   );
 }
