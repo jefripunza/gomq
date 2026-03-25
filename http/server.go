@@ -30,8 +30,8 @@ func replaceHTMLHeadTitle(data []byte) []byte {
 		return data
 	}
 	s := string(data)
-	s = strings.ReplaceAll(s, "html-head-title", "Go MQTT Engine | The next level message queue")
-	s = strings.ReplaceAll(s, "html-head-description", "Go MQTT Engine is a self-hosted message queue")
+	s = strings.ReplaceAll(s, "html-head-title", "Go MQTT Engine | High-Performance Self-Hosted Message Broker")
+	s = strings.ReplaceAll(s, "html-head-description", "A lightweight, high-performance MQTT broker built with Go. Features real-time messaging, HTTP API integration, and graceful shutdown capabilities for reliable IoT and microservices communication.")
 	return []byte(s)
 }
 
@@ -51,7 +51,7 @@ func Start() *fiber.App {
 		Prefork:       false,
 		StrictRouting: true,
 		CaseSensitive: true,
-		BodyLimit:     1024 * 1024 * 10, // MB
+		BodyLimit:     1024 * 1024 * 3, // MB
 		Concurrency:   256 * 1024,
 	})
 
