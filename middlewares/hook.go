@@ -48,18 +48,35 @@ func validateCredentials(username, password string) error {
 	return nil
 }
 
-// validateTopicAccess checks if the given topic is associated with the user identified by username+password.
+// validateTopicAccess checks if the given topic is accessible by the user identified by username+password.
 // Only called when both username and password are non-empty.
+// Logic: First check if topic exists. If topic has no user_id, allow access. If topic has user_id, validate it matches the user.
 func validateTopicAccess(username, password, topicName string) error {
-	var count int64
+	var result struct {
+		UserID *string
+	}
 	if err := variable.Db.Table("topics").
-		Joins("JOIN users ON users.id = topics.user_id").
-		Where("users.username = ? AND users.password = ? AND topics.name = ?", username, password, topicName).
+		Select("user_id").
+		Where("name = ?", topicName).
+		First(&result).Error; err != nil {
+		return fmt.Errorf("topic '%s' not found", topicName)
+	}
+
+	// if topic has no credential, allow access
+	if result.UserID == nil || *result.UserID == "" {
+		return nil
+	}
+	// log.Printf("topic has credential: %s", *result.UserID)
+
+	// topic has credential, validate user match
+	var count int64
+	if err := variable.Db.Table("users").
+		Where("id = ? AND username = ? AND password = ?", *result.UserID, username, password).
 		Count(&count).Error; err != nil {
-		return fmt.Errorf("failed to query topic access: %w", err)
+		return fmt.Errorf("failed to query user: %w", err)
 	}
 	if count == 0 {
-		return fmt.Errorf("topic '%s' not allowed for username=%s", topicName, username)
+		return fmt.Errorf("topic '%s' requires different credentials", topicName)
 	}
 	return nil
 }
