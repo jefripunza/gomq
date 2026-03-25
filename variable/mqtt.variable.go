@@ -1,6 +1,7 @@
 package variable
 
 import (
+	"log"
 	"sync"
 
 	mqtt "github.com/mochi-mqtt/server/v2"
@@ -27,6 +28,7 @@ func (ts *topicSubscribers) Subscribe(topicName, clientID string, client *mqtt.C
 		ts.data[topicName] = make(map[string]*mqtt.Client)
 	}
 	ts.data[topicName][clientID] = client
+	log.Printf("📋 [TRACK] client_id=%s subscribed to topic=%s (total_subs=%d)\n", clientID, topicName, len(ts.data[topicName]))
 }
 
 // Unsubscribe removes a client from a topic's subscriber list
@@ -35,8 +37,10 @@ func (ts *topicSubscribers) Unsubscribe(topicName, clientID string) {
 	defer ts.Unlock()
 	if ts.data[topicName] != nil {
 		delete(ts.data[topicName], clientID)
+		log.Printf("📋 [UNTRACK] client_id=%s unsubscribed from topic=%s\n", clientID, topicName)
 		if len(ts.data[topicName]) == 0 {
 			delete(ts.data, topicName)
+			log.Printf("📋 [UNTRACK] topic=%s removed (no subscribers)\n", topicName)
 		}
 	}
 }
@@ -62,9 +66,13 @@ func (ts *topicSubscribers) UnsubscribeClient(cl *mqtt.Client) {
 		// Only delete if the stored pointer matches this client
 		if stored, ok := clients[cl.ID]; ok && stored == cl {
 			delete(clients, cl.ID)
+			log.Printf("📋 [UNTRACK-CLIENT] client_id=%s removed from topic=%s (pointer match)\n", cl.ID, topicName)
 			if len(clients) == 0 {
 				delete(ts.data, topicName)
+				log.Printf("📋 [UNTRACK-CLIENT] topic=%s removed (no subscribers)\n", topicName)
 			}
+		} else if stored != nil && stored != cl {
+			log.Printf("📋 [UNTRACK-CLIENT] client_id=%s skipped for topic=%s (pointer mismatch - takeover)\n", cl.ID, topicName)
 		}
 	}
 }
@@ -89,20 +97,28 @@ func (ts *topicSubscribers) DisconnectAndClear(topicName string, stopErr error) 
 	ts.Lock()
 	defer ts.Unlock()
 
+	log.Printf("🔄 [DISCONNECT-CLEAR] starting for topic=%s (subscribers=%d)\n", topicName, len(ts.data[topicName]))
+
 	disconnected := make([]string, 0)
 	if ts.data[topicName] != nil {
 		for clientID, cl := range ts.data[topicName] {
 			if !cl.Closed() {
+				log.Printf("🔄 [DISCONNECT-CLEAR] stopping client_id=%s\n", clientID)
 				cl.Stop(stopErr)
 				// remove from mochi-mqtt internal client map to prevent
 				// session takeover loop when client reconnects
 				if MqttServer != nil {
 					MqttServer.Clients.Delete(clientID)
+					log.Printf("🔄 [DISCONNECT-CLEAR] deleted client_id=%s from MqttServer.Clients\n", clientID)
 				}
 				disconnected = append(disconnected, clientID)
+			} else {
+				log.Printf("🔄 [DISCONNECT-CLEAR] client_id=%s already closed, skipping\n", clientID)
 			}
 		}
 		delete(ts.data, topicName)
+		log.Printf("🔄 [DISCONNECT-CLEAR] topic=%s cleared from tracking\n", topicName)
 	}
+	log.Printf("🔄 [DISCONNECT-CLEAR] completed for topic=%s (disconnected=%d)\n", topicName, len(disconnected))
 	return disconnected
 }
