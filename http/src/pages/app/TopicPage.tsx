@@ -12,7 +12,7 @@ import {
 import { formatDate } from "@/utils/datetime";
 import { useWhitelistStore } from "@/stores/whitelistStore";
 
-export default function WhitelistPage() {
+export default function TopicPage() {
   const { entries, isLoading, fetchAll, addEntry, removeEntry } =
     useWhitelistStore();
   const [search, setSearch] = useState("");

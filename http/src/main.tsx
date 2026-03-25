@@ -12,7 +12,7 @@ import AppLayout from "@/layouts/AppLayout";
 // Pages
 import LoginPage from "@/pages/auth/LoginPage";
 import DashboardPage from "@/pages/app/DashboardPage";
-import WhitelistPage from "@/pages/app/WhitelistPage";
+import TopicPage from "@/pages/app/TopicPage";
 import ApiKeyPage from "@/pages/app/ApiKeyPage";
 import SettingsPage from "@/pages/app/SettingPage";
 import DocPage from "@/pages/DocPage";
@@ -45,8 +45,8 @@ const router = createBrowserRouter([
             element: <DashboardPage />,
           },
           {
-            path: "whitelist",
-            element: <WhitelistPage />,
+            path: "topic",
+            element: <TopicPage />,
           },
           {
             path: "apikey",
