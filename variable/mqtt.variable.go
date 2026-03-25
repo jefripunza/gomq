@@ -83,6 +83,7 @@ func (ts *topicSubscribers) GetSubscribers(topicName string) []*mqtt.Client {
 }
 
 // DisconnectAndClear stops all clients subscribed to a topic and removes the topic from the map.
+// Also removes clients from mochi-mqtt's internal map to prevent takeover loop on reconnect.
 // Returns the list of disconnected client IDs.
 func (ts *topicSubscribers) DisconnectAndClear(topicName string, stopErr error) []string {
 	ts.Lock()
@@ -93,6 +94,11 @@ func (ts *topicSubscribers) DisconnectAndClear(topicName string, stopErr error) 
 		for clientID, cl := range ts.data[topicName] {
 			if !cl.Closed() {
 				cl.Stop(stopErr)
+				// remove from mochi-mqtt internal client map to prevent
+				// session takeover loop when client reconnects
+				if MqttServer != nil {
+					MqttServer.Clients.Delete(clientID)
+				}
 				disconnected = append(disconnected, clientID)
 			}
 		}
