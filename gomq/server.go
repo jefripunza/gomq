@@ -37,7 +37,7 @@ func Start() *mqtt.Server {
 	}
 
 	tcp := listeners.NewTCP(listeners.Config{
-		ID:      "tcp1",
+		ID:      "gomq",
 		Address: ":" + mqtt_port,
 	})
 	if err := server.AddListener(tcp); err != nil {
