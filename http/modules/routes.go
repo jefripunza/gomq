@@ -8,6 +8,7 @@ import (
 	"gomqtt/http/modules/example"
 	"gomqtt/http/modules/setting"
 	"gomqtt/http/modules/topic"
+	"gomqtt/http/modules/user"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -25,6 +26,9 @@ func SetupRoutes(app *fiber.App, api fiber.Router) {
 
 	// /api/dashboard (protected)
 	dashboard.RegisterRoutes(api.Group("/dashboard", http_middlewares.UseToken))
+
+	// /api/user (protected)
+	user.RegisterRoutes(api.Group("/user", http_middlewares.UseToken))
 
 	// /api/topic (protected)
 	topic.RegisterRoutes(api.Group("/topic", http_middlewares.UseToken))

@@ -6,6 +6,7 @@ import (
 	"gomqtt/variable"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type CreateTopicRequest struct {
@@ -14,6 +15,7 @@ type CreateTopicRequest struct {
 	Method  *string  `json:"method,omitempty"`
 	URL     *string  `json:"url,omitempty"`
 	Origins []string `json:"origins,omitempty"`
+	UserID  *string  `json:"user_id,omitempty"`
 }
 
 func GetAll(c *fiber.Ctx) error {
@@ -62,6 +64,14 @@ func Create(c *fiber.Ctx) error {
 			originsStr := string(originsJSON)
 			entry.Origins = &originsStr
 		}
+	}
+
+	if req.UserID != nil && *req.UserID != "" {
+		parsed, err := uuid.Parse(*req.UserID)
+		if err != nil {
+			return dto.BadRequest(c, "Invalid user_id format", nil)
+		}
+		entry.UserID = &parsed
 	}
 
 	if err := variable.Db.Create(&entry).Error; err != nil {

@@ -12,6 +12,7 @@ import AppLayout from "@/layouts/AppLayout";
 // Pages
 import LoginPage from "@/pages/auth/LoginPage";
 import DashboardPage from "@/pages/app/DashboardPage";
+import UserPage from "@/pages/app/UserPage";
 import TopicPage from "@/pages/app/TopicPage";
 import ApiKeyPage from "@/pages/app/ApiKeyPage";
 import SettingsPage from "@/pages/app/SettingPage";
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
           {
             path: "dashboard",
             element: <DashboardPage />,
+          },
+          {
+            path: "user",
+            element: <UserPage />,
           },
           {
             path: "topic",

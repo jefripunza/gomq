@@ -12,6 +12,7 @@ import {
   HiOutlineCog,
   HiOutlineKey,
   HiOutlineServer,
+  HiOutlineUsers,
   HiOutlineCollection,
 } from "react-icons/hi";
 import { HiSun, HiMoon, HiLanguage, HiBookOpen } from "react-icons/hi2";
@@ -33,6 +34,12 @@ const navItems: NavItem[] = [
     labelEn: "Dashboard",
     path: "/app/dashboard",
     icon: HiOutlineViewGrid,
+  },
+  {
+    labelId: "Pengguna",
+    labelEn: "User",
+    path: "/app/user",
+    icon: HiOutlineUsers,
   },
   {
     labelId: "Topik",

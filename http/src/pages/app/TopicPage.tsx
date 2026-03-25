@@ -14,6 +14,7 @@ import {
   type Topic,
   type TopicType,
 } from "@/services/topic.service";
+import { userService, type User } from "@/services/user.service";
 import { useLanguageStore } from "@/stores/languageStore";
 import { formatDate } from "@/utils/datetime";
 
@@ -62,6 +63,10 @@ export default function TopicPage() {
   const [formUrl, setFormUrl] = useState("");
   const [formOrigins, setFormOrigins] = useState<string[]>([]);
   const [originInput, setOriginInput] = useState("");
+  const [formUserId, setFormUserId] = useState("");
+
+  // Users for dropdown
+  const [users, setUsers] = useState<User[]>([]);
 
   const resetForm = () => {
     setFormType("");
@@ -70,6 +75,7 @@ export default function TopicPage() {
     setFormUrl("");
     setFormOrigins([]);
     setOriginInput("");
+    setFormUserId("");
   };
 
   const fetchTopics = useCallback(async () => {
@@ -84,9 +90,19 @@ export default function TopicPage() {
     }
   }, []);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await userService.getAll();
+      setUsers(res.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTopics();
-  }, [fetchTopics]);
+    fetchUsers();
+  }, [fetchTopics, fetchUsers]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +119,7 @@ export default function TopicPage() {
         ...(formType === "api_to_sub" && {
           origins: formOrigins,
         }),
+        ...(formUserId && { user_id: formUserId }),
       });
       resetForm();
       setIsAddOpen(false);
@@ -246,6 +263,33 @@ export default function TopicPage() {
                       className={`${inputClass} font-mono`}
                       required
                     />
+                  </div>
+
+                  {/* User credential (optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                      {language("Kredensial Pengguna", "User Credential")}
+                      <span className="text-dark-400 text-xs ml-1">
+                        ({language("opsional", "optional")})
+                      </span>
+                    </label>
+                    <select
+                      value={formUserId}
+                      onChange={(e) => setFormUserId(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">
+                        {language(
+                          "-- Tanpa kredensial --",
+                          "-- No credential --",
+                        )}
+                      </option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.title} ({u.username})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Publish to API: method + url */}
@@ -398,6 +442,15 @@ export default function TopicPage() {
                     <span className="font-mono font-semibold text-foreground text-sm truncate">
                       {topic.name}
                     </span>
+                    {topic.user_id &&
+                      (() => {
+                        const u = users.find((u) => u.id === topic.user_id);
+                        return u ? (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border text-dark-200 bg-dark-700/40 border-dark-600/30">
+                            @{u.username}
+                          </span>
+                        ) : null;
+                      })()}
                   </div>
 
                   {/* Extra info per type */}

@@ -10,6 +10,7 @@ export interface Topic {
   method?: string | null;
   url?: string | null;
   origins?: string | null;
+  user_id?: string | null;
   created_at: string;
 }
 
@@ -24,6 +25,7 @@ export const topicService = {
     method?: string;
     url?: string;
     origins?: string[];
+    user_id?: string;
   }) => {
     const response = await satellite.post<Response<Topic>>(
       "/api/topic/create",
