@@ -136,6 +136,8 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 
 	validFilters := make([]packets.Subscription, 0, len(pk.Filters))
 	for _, sub := range pk.Filters {
+		// track subscription in MqttTopicSubs
+		variable.MqttTopicSubs.Subscribe(sub.Filter, cl.ID, cl)
 		// validate topic access only when both username and password are provided
 		if clientInfo.Username != "" && clientInfo.Password != "" {
 			if err := validateTopicAccess(clientInfo.Username, clientInfo.Password, sub.Filter); err != nil {
@@ -150,8 +152,6 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 			sub.Filter,
 			sub.Qos,
 		)
-		// track subscription in MqttTopicSubs
-		variable.MqttTopicSubs.Subscribe(sub.Filter, cl.ID, cl)
 		validFilters = append(validFilters, sub)
 	}
 
