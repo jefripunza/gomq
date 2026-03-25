@@ -129,6 +129,8 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 		log.Printf("❌ [SUBSCRIBE] client_id=%s not found\n", cl.ID)
 		return pk
 	}
+
+	validFilters := make([]packets.Subscription, 0, len(pk.Filters))
 	for _, sub := range pk.Filters {
 		// validate topic access only when both username and password are provided
 		if clientInfo.Username != "" && clientInfo.Password != "" {
@@ -144,7 +146,10 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 			sub.Filter,
 			sub.Qos,
 		)
+		validFilters = append(validFilters, sub)
 	}
+
+	pk.Filters = validFilters
 	return pk
 }
 
@@ -179,13 +184,12 @@ func (h *MiddlewareHook) OnPublish(cl *mqtt.Client, pk packets.Packet) (packets.
 		}
 	}
 
-	log.Printf("📨 [PUBLISH] client_id=%s username=%s password=%s topic=%s qos=%d payload=%s\n",
+	log.Printf("📨 [PUBLISH] client_id=%s username=%s password=%s topic=%s qos=%d\n",
 		cl.ID,
 		clientInfo.Username,
 		clientInfo.Password,
 		pk.TopicName,
 		pk.FixedHeader.Qos,
-		string(pk.Payload),
 	)
 	return pk, nil
 }
