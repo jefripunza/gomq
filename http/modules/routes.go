@@ -7,7 +7,7 @@ import (
 	"gomqtt/http/modules/dashboard"
 	"gomqtt/http/modules/example"
 	"gomqtt/http/modules/setting"
-	"gomqtt/http/modules/whitelist"
+	"gomqtt/http/modules/topic"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,23 +17,18 @@ func SetupRoutes(app *fiber.App, api fiber.Router) {
 	example.RegisterRoutes(api)
 
 	// /api/auth
-	authApi := api.Group("/auth")
-	auth.RegisterPublicRoutes(authApi)
-	auth.RegisterProtectedRoutes(authApi)
+	auth.RegisterPublicRoutes(api.Group("/auth"))
+	auth.RegisterProtectedRoutes(api.Group("/auth", http_middlewares.UseToken))
 
 	// /api/setting (protected)
-	settingProtected := api.Group("/setting", http_middlewares.UseToken)
-	setting.RegisterRoutes(settingProtected)
+	setting.RegisterRoutes(api.Group("/setting", http_middlewares.UseToken))
 
 	// /api/dashboard (protected)
-	dashboardProtected := api.Group("/dashboard", http_middlewares.UseToken)
-	dashboard.RegisterRoutes(dashboardProtected)
+	dashboard.RegisterRoutes(api.Group("/dashboard", http_middlewares.UseToken))
 
-	// /api/whitelist (protected)
-	whitelistProtected := api.Group("/whitelist", http_middlewares.UseToken)
-	whitelist.RegisterRoutes(whitelistProtected)
+	// /api/topic (protected)
+	topic.RegisterRoutes(api.Group("/topic", http_middlewares.UseToken))
 
 	// /api/apikey (protected)
-	apikeyProtected := api.Group("/apikey", http_middlewares.UseToken)
-	apikey.RegisterRoutes(apikeyProtected)
+	apikey.RegisterRoutes(api.Group("/apikey", http_middlewares.UseToken))
 }

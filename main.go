@@ -4,6 +4,7 @@ import (
 	"context"
 	"gomqtt/gomqtt"
 	"gomqtt/http"
+	"gomqtt/http/database"
 	"log"
 	"os"
 	"os/signal"
@@ -12,6 +13,11 @@ import (
 )
 
 func main() {
+	// ================================
+	// Initialize database
+	// ================================
+	database.OpenDB()
+
 	// ================================
 	// RUN MQTT SERVER (non-blocking)
 	// ================================

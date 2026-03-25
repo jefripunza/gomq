@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { HiOutlineX } from "react-icons/hi";
 
 import { cn } from "@/lib/utils";
 
@@ -39,10 +39,8 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close
-        className="absolute right-4 top-4 rounded-lg p-2 text-dark-400 hover:text-foreground hover:bg-dark-700/50 transition-all focus:outline-none"
-      >
-        <X className="h-4 w-4" />
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-2 text-dark-400 hover:text-foreground hover:bg-dark-700/50 transition-all focus:outline-none">
+        <HiOutlineX className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -55,7 +53,13 @@ function DialogHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+    <div
+      className={cn(
+        "flex flex-col space-y-1.5 text-center sm:text-left",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

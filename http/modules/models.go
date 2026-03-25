@@ -3,7 +3,7 @@ package modules
 import (
 	"gomqtt/http/modules/apikey"
 	"gomqtt/http/modules/setting"
-	"gomqtt/http/modules/whitelist"
+	"gomqtt/http/modules/topic"
 
 	"gorm.io/gorm"
 )
@@ -11,7 +11,7 @@ import (
 func Models() []interface{} {
 	return []interface{}{
 		&setting.Setting{},
-		&whitelist.Whitelist{},
+		&topic.Topic{},
 		&apikey.ApiKey{},
 	}
 }

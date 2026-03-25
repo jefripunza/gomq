@@ -3,55 +3,55 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { useLanguageStore } from "@/stores/languageStore";
 import {
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  X,
-  Sun,
-  Moon,
-  Settings,
-  Shield,
-  FileText,
-  Group,
-  Key,
-} from "lucide-react";
+  HiOutlineViewGrid,
+  HiOutlineLogout,
+  HiOutlineMenu,
+  HiOutlineX,
+  HiOutlineCog,
+  HiOutlineKey,
+  HiOutlineServer,
+  HiOutlineCollection,
+} from "react-icons/hi";
+import { HiSun, HiMoon, HiLanguage, HiBookOpen } from "react-icons/hi2";
+import type { IconType } from "react-icons";
 import Loading from "@/components/Loading";
 import version from "@/version";
 
-const navItems = [
+interface NavItem {
+  labelId: string;
+  labelEn: string;
+  path: string;
+  icon: IconType;
+  dividerBefore?: boolean;
+}
+
+const navItems: NavItem[] = [
   {
-    label: "Dashboard",
+    labelId: "Dasbor",
+    labelEn: "Dashboard",
     path: "/app/dashboard",
-    icon: LayoutDashboard,
+    icon: HiOutlineViewGrid,
   },
   {
-    label: "Queues",
-    path: "/app/queues",
-    icon: Group,
+    labelId: "Topik",
+    labelEn: "Topics",
+    path: "/app/topic",
+    icon: HiOutlineCollection,
   },
   {
-    label: "Log",
-    path: "/app/log",
-    icon: FileText,
-  },
-  {
-    label: "Whitelist",
-    path: "/app/whitelist",
-    icon: Shield,
-  },
-  {
-    label: "Apikey",
+    labelId: "API Key",
+    labelEn: "API Key",
     path: "/app/apikey",
-    icon: Key,
+    icon: HiOutlineKey,
   },
-
-  // ----------------------- //
-
   {
-    label: "Setting",
+    labelId: "Pengaturan",
+    labelEn: "Settings",
     path: "/app/setting",
-    icon: Settings,
+    icon: HiOutlineCog,
+    dividerBefore: true,
   },
 ];
 
@@ -68,6 +68,7 @@ export default function AppLayout() {
     setMobileOpen,
   } = useSidebarStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const { language, languageCode, toggleLanguage } = useLanguageStore();
 
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -82,7 +83,7 @@ export default function AppLayout() {
   }, [validateToken, navigate]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)"); // lg
+    const mq = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
       const nextIsDesktop = mq.matches;
       setIsDesktop(nextIsDesktop);
@@ -144,18 +145,14 @@ export default function AppLayout() {
         {/* Sidebar Header */}
         <div className="h-16 flex items-center px-4 border-b border-dark-600/50 shrink-0">
           <div className="flex items-center w-full min-w-0">
-            {/* Logo - hidden when collapsed */}
             {(!effectiveCollapsed || isMobileOpen) && (
               <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-lg bg-accent-500/20 border border-accent-500/30 flex items-center justify-center overflow-hidden">
-                    <img src="/apimq.svg" alt="ApiMQ" className="w-5 h-5" />
-                  </div>
-                  {/* <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-neon-green rounded-full animate-pulse-glow" /> */}
+                <div className="shrink-0 w-9 h-9 rounded-lg bg-accent-500/20 border border-accent-500/30 flex items-center justify-center">
+                  <HiOutlineServer className="w-5 h-5 text-accent-400" />
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-base font-bold text-foreground tracking-tight truncate">
-                    ApiMQ
+                    Go MQTT Engine
                   </h1>
                   <p className="text-[10px] text-dark-400 font-mono truncate">
                     {version}
@@ -164,13 +161,23 @@ export default function AppLayout() {
               </div>
             )}
 
-            {/* Desktop collapse hamburger (RIGHT side) */}
+            {effectiveCollapsed && !isMobileOpen && (
+              <div className="mx-auto shrink-0 w-9 h-9 rounded-lg bg-accent-500/20 border border-accent-500/30 flex items-center justify-center">
+                <HiOutlineServer className="w-5 h-5 text-accent-400" />
+              </div>
+            )}
+
+            {/* Desktop collapse hamburger */}
             <button
               onClick={toggleCollapse}
               className="hidden lg:flex text-dark-300 hover:text-foreground transition-colors shrink-0 ml-auto"
-              title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={
+                effectiveCollapsed
+                  ? language("Perluas sidebar", "Expand sidebar")
+                  : language("Ciutkan sidebar", "Collapse sidebar")
+              }
             >
-              <Menu className="w-5 h-5" />
+              <HiOutlineMenu className="w-5 h-5" />
             </button>
 
             {/* Mobile close button */}
@@ -178,7 +185,7 @@ export default function AppLayout() {
               onClick={() => setMobileOpen(false)}
               className="ml-auto lg:hidden text-dark-300 hover:text-foreground transition-colors"
             >
-              <X className="w-5 h-5" />
+              <HiOutlineX className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -188,40 +195,46 @@ export default function AppLayout() {
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
+            const label = language(item.labelId, item.labelEn);
             return (
-              <button
-                key={item.path}
-                onClick={() => handleNavClick(item.path)}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-accent-500/15 text-accent-400 border border-accent-500/20"
-                      : "text-dark-300 hover:text-foreground hover:bg-dark-700/50 border border-transparent"
-                  }
-                  ${effectiveCollapsed && !isMobileOpen ? "justify-center" : ""}
-                `}
-                title={effectiveCollapsed ? item.label : undefined}
-              >
-                <Icon className="w-4.5 h-4.5 shrink-0" />
-                {(!effectiveCollapsed || isMobileOpen) && (
-                  <span className="truncate">{item.label}</span>
+              <div key={item.path}>
+                {item.dividerBefore && (
+                  <div className="my-3 border-t border-dark-600/40" />
                 )}
-              </button>
+                <button
+                  onClick={() => handleNavClick(item.path)}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                    ${
+                      isActive
+                        ? "bg-accent-500/15 text-accent-400 border border-accent-500/20"
+                        : "text-dark-300 hover:text-foreground hover:bg-dark-700/50 border border-transparent"
+                    }
+                    ${effectiveCollapsed && !isMobileOpen ? "justify-center" : ""}
+                  `}
+                  title={effectiveCollapsed ? label : undefined}
+                >
+                  <Icon className="w-4.5 h-4.5 shrink-0" />
+                  {(!effectiveCollapsed || isMobileOpen) && (
+                    <span className="truncate">{label}</span>
+                  )}
+                </button>
+              </div>
             );
           })}
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t border-dark-600/50 p-3 space-y-2 shrink-0">
-          {/* Logout */}
+        <div className="border-t border-dark-600/50 p-3 space-y-1 shrink-0">
           <button
             onClick={handleLogout}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-dark-300 hover:text-neon-red hover:bg-neon-red/5 transition-all ${effectiveCollapsed && !isMobileOpen ? "justify-center" : ""}`}
-            title="Sign out"
+            title={language("Keluar", "Sign out")}
           >
-            <LogOut className="w-4.5 h-4.5 shrink-0" />
-            {(!effectiveCollapsed || isMobileOpen) && <span>Sign Out</span>}
+            <HiOutlineLogout className="w-4.5 h-4.5 shrink-0" />
+            {(!effectiveCollapsed || isMobileOpen) && (
+              <span>{language("Keluar", "Sign Out")}</span>
+            )}
           </button>
         </div>
       </aside>
@@ -229,16 +242,16 @@ export default function AppLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Top bar */}
-        <header className="h-16 bg-dark-800/60 backdrop-blur-md border-b border-dark-600/50 flex items-center px-4 lg:px-6 shrink-0 sticky top-0 z-30">
+        <header className="h-14 bg-dark-800/60 backdrop-blur-md border-b border-dark-600/50 flex items-center px-4 lg:px-6 shrink-0 sticky top-0 z-30">
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-dark-300 hover:text-foreground transition-colors mr-4"
+            className="lg:hidden text-dark-300 hover:text-foreground transition-colors mr-3"
           >
-            <Menu className="w-5 h-5" />
+            <HiOutlineMenu className="w-5 h-5" />
           </button>
 
-          {/* Page title from route */}
+          {/* Page breadcrumb */}
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-neon-green" />
             <span className="text-sm font-mono text-dark-300">
@@ -246,32 +259,46 @@ export default function AppLayout() {
             </span>
           </div>
 
-          {/* Right side */}
-          <div className="ml-auto flex items-center gap-3">
+          {/* Right side actions */}
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            {/* Language toggle */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-dark-300 hover:text-foreground hover:bg-dark-700/50 transition-all text-xs font-mono"
+              title={language("Ganti bahasa", "Change language")}
+            >
+              <HiLanguage className="w-4 h-4" />
+              <span className="uppercase hidden sm:inline">{languageCode}</span>
+            </button>
+
             {/* Dark mode toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-dark-300 hover:text-foreground hover:bg-dark-700/50 transition-all"
               title={
-                isDarkMode ? "Switch to light mode" : "Switch to dark mode"
+                isDarkMode
+                  ? language("Mode terang", "Light mode")
+                  : language("Mode gelap", "Dark mode")
               }
             >
               {isDarkMode ? (
-                <Sun className="w-4 h-4" />
+                <HiSun className="w-4 h-4" />
               ) : (
-                <Moon className="w-4 h-4" />
+                <HiMoon className="w-4 h-4" />
               )}
             </button>
 
+            {/* Docs link */}
             <button
               type="button"
               onClick={() =>
                 window.open("/doc", "_blank", "noopener,noreferrer")
               }
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-dark-700/50 rounded-lg border border-dark-600/30 text-xs font-mono text-dark-300 hover:text-foreground hover:bg-dark-700/70 transition-all"
-              title="Open Docs"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700/50 rounded-lg border border-dark-600/30 text-xs font-mono text-dark-300 hover:text-foreground hover:bg-dark-700/70 transition-all"
+              title={language("Buka Dokumentasi", "Open Docs")}
             >
-              Docs
+              <HiBookOpen className="w-3.5 h-3.5" />
+              <span>Docs</span>
             </button>
           </div>
         </header>

@@ -8,10 +8,10 @@ import {
   type Ref,
   type ReactNode,
 } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHeader,
@@ -19,7 +19,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
-} from "@/components/ui/Table";
+} from "@/components/ui/table";
 import {
   HiOutlineSearch,
   HiOutlineChevronLeft,

@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
-  Inbox,
-  Clock,
-  AlertTriangle,
-  Timer,
-  CheckCircle2,
-} from "lucide-react";
+  HiOutlineCollection,
+  HiOutlineLightningBolt,
+  HiOutlineCheckCircle,
+  HiOutlineClock,
+  HiOutlineExclamation,
+} from "react-icons/hi";
+import { HiOutlineBoltSlash } from "react-icons/hi2";
 
 import StatCard from "@/components/StatCard";
 import LineChart from "@/components/LineChart";
 
 import { useDashboardStore } from "@/stores/dashboardStore";
+import { useLanguageStore } from "@/stores/languageStore";
 import { getSocket } from "@/lib/socket";
 
 export default function DashboardPage() {
   const { stats, queues, fetchStats, setStats } = useDashboardStore();
+  const { language } = useLanguageStore();
 
   useEffect(() => {
     fetchStats();
@@ -94,48 +96,53 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fade-in">
       {/* Page header */}
       <div>
-        <h2 className="text-xl font-bold text-foreground">Dashboard</h2>
+        <h2 className="text-xl font-bold text-foreground">
+          {language("Dasbor", "Dashboard")}
+        </h2>
         <p className="text-sm text-dark-300 mt-1">
-          Real-time overview of your message queues
+          {language(
+            "Ikhtisar real-time broker MQTT Anda",
+            "Real-time overview of your MQTT broker",
+          )}
         </p>
       </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         <StatCard
-          label="Total Queues"
+          label={language("Total Topik", "Total Topics")}
           value={stats.total_queues}
-          icon={Inbox}
+          icon={HiOutlineCollection}
           color="indigo"
         />
         <StatCard
-          label="Total Messages"
+          label={language("Total Pesan", "Total Messages")}
           value={stats.total_messages}
-          icon={Activity}
+          icon={HiOutlineLightningBolt}
           color="green"
         />
         <StatCard
-          label="Completed"
+          label={language("Selesai", "Completed")}
           value={stats.total_completed}
-          icon={CheckCircle2}
+          icon={HiOutlineCheckCircle}
           color="cyan"
         />
         <StatCard
-          label="Pending"
+          label={language("Tertunda", "Pending")}
           value={stats.total_pending}
-          icon={Clock}
+          icon={HiOutlineClock}
           color="yellow"
         />
         <StatCard
-          label="Timing"
+          label={language("Waktu Proses", "Processing Time")}
           value={stats.total_timing}
-          icon={Timer}
+          icon={HiOutlineBoltSlash}
           color="indigo"
         />
         <StatCard
-          label="Failed"
+          label={language("Gagal", "Failed")}
           value={stats.total_failed}
-          icon={AlertTriangle}
+          icon={HiOutlineExclamation}
           color="red"
         />
       </div>
@@ -144,10 +151,13 @@ export default function DashboardPage() {
       <div className="bg-dark-800/60 border border-dark-600/40 rounded-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-dark-600/40">
           <h3 className="text-sm font-semibold text-foreground">
-            Queue Incoming
+            {language("Pesan Masuk per Topik", "Incoming Messages per Topic")}
           </h3>
           <p className="text-xs text-dark-400 mt-0.5 font-mono">
-            Live chart (updates every second) - 1 line per queue
+            {language(
+              "Grafik langsung (diperbarui setiap detik) - 1 garis per topik",
+              "Live chart (updates every second) - 1 line per topic",
+            )}
           </p>
         </div>
         <div className="p-4">
