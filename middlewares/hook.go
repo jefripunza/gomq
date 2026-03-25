@@ -113,9 +113,11 @@ func (h *MiddlewareHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
 // ON DISCONNECT
 // --------------------------------
 func (h *MiddlewareHook) OnDisconnect(cl *mqtt.Client, err error, expire bool) {
-	// remove client from all topic subscriptions
-	variable.MqttTopicSubs.UnsubscribeAll(cl.ID)
-	delete(clients, cl.ID)
+	// remove client from topic subscriptions (pass client pointer to avoid race condition)
+	variable.MqttTopicSubs.UnsubscribeClient(cl)
+	// Note: Don't delete from clients map here - OnConnect will overwrite it on reconnect
+	// This prevents race condition where OnDisconnect from old connection deletes
+	// the entry just registered by OnConnect of new connection (takeover scenario)
 
 	if err != nil {
 		log.Printf("❌ [DISCONNECT] client_id=%s reason=%s expire=%v\n", cl.ID, err.Error(), expire)

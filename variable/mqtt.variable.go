@@ -53,6 +53,22 @@ func (ts *topicSubscribers) UnsubscribeAll(clientID string) {
 	}
 }
 
+// UnsubscribeClient removes a specific client pointer from all topics.
+// Only removes if the stored client pointer matches (handles takeover scenario).
+func (ts *topicSubscribers) UnsubscribeClient(cl *mqtt.Client) {
+	ts.Lock()
+	defer ts.Unlock()
+	for topicName, clients := range ts.data {
+		// Only delete if the stored pointer matches this client
+		if stored, ok := clients[cl.ID]; ok && stored == cl {
+			delete(clients, cl.ID)
+			if len(clients) == 0 {
+				delete(ts.data, topicName)
+			}
+		}
+	}
+}
+
 // GetSubscribers returns all clients subscribed to a topic
 func (ts *topicSubscribers) GetSubscribers(topicName string) []*mqtt.Client {
 	ts.RLock()
@@ -64,4 +80,23 @@ func (ts *topicSubscribers) GetSubscribers(topicName string) []*mqtt.Client {
 		}
 	}
 	return clients
+}
+
+// DisconnectAndClear stops all clients subscribed to a topic and removes the topic from the map.
+// Returns the list of disconnected client IDs.
+func (ts *topicSubscribers) DisconnectAndClear(topicName string, stopErr error) []string {
+	ts.Lock()
+	defer ts.Unlock()
+
+	disconnected := make([]string, 0)
+	if ts.data[topicName] != nil {
+		for clientID, cl := range ts.data[topicName] {
+			if !cl.Closed() {
+				cl.Stop(stopErr)
+				disconnected = append(disconnected, clientID)
+			}
+		}
+		delete(ts.data, topicName)
+	}
+	return disconnected
 }

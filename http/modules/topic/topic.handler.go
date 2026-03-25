@@ -14,13 +14,9 @@ import (
 
 // disconnectSubscribers force disconnects all MQTT clients subscribed to the given topic.
 func disconnectSubscribers(topicName string) {
-	subscribers := variable.MqttTopicSubs.GetSubscribers(topicName)
-	for _, cl := range subscribers {
-		if cl.Closed() {
-			continue
-		}
-		log.Printf("⚡ [DISCONNECT] force disconnect client_id=%s due to topic '%s' changed\n", cl.ID, topicName)
-		cl.Stop(errors.New("topic configuration changed"))
+	disconnected := variable.MqttTopicSubs.DisconnectAndClear(topicName, errors.New("topic configuration changed"))
+	for _, clientID := range disconnected {
+		log.Printf("⚡ [DISCONNECT] force disconnect client_id=%s due to topic '%s' changed\n", clientID, topicName)
 	}
 }
 
