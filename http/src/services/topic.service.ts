@@ -33,6 +33,23 @@ export const topicService = {
     );
     return response.data;
   },
+  update: async (
+    id: string,
+    payload: {
+      type: TopicType;
+      name: string;
+      method?: string;
+      url?: string;
+      origins?: string[];
+      user_id?: string;
+    },
+  ) => {
+    const response = await satellite.put<Response<Topic>>(
+      `/api/topic/update/${encodeURIComponent(id)}`,
+      payload,
+    );
+    return response.data;
+  },
   remove: async (id: string) => {
     const response = await satellite.delete<Response<null>>(
       `/api/topic/remove/${encodeURIComponent(id)}`,

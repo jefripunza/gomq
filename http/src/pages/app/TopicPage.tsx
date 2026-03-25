@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { HiOutlinePlus, HiOutlineTrash, HiOutlineX } from "react-icons/hi";
+import {
+  HiOutlinePlus,
+  HiOutlineTrash,
+  HiOutlinePencil,
+  HiOutlineX,
+} from "react-icons/hi";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import DialogDelete from "@/components/DialogDelete";
 import {
@@ -17,7 +21,6 @@ import {
 } from "@/services/topic.service";
 import { userService, type User } from "@/services/user.service";
 import { useLanguageStore } from "@/stores/languageStore";
-import { formatDate } from "@/utils/datetime";
 
 const TOPIC_TYPES: { value: TopicType; labelId: string; labelEn: string }[] = [
   {
@@ -53,9 +56,10 @@ export default function TopicPage() {
 
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Topic | null>(null);
+  const [editTarget, setEditTarget] = useState<Topic | null>(null);
 
   // Form state
   const [formType, setFormType] = useState<TopicType | "">("");
@@ -69,6 +73,8 @@ export default function TopicPage() {
   // Users for dropdown
   const [users, setUsers] = useState<User[]>([]);
 
+  const isEditMode = editTarget !== null;
+
   const resetForm = () => {
     setFormType("");
     setFormName("");
@@ -77,6 +83,24 @@ export default function TopicPage() {
     setFormOrigins([]);
     setOriginInput("");
     setFormUserId("");
+    setEditTarget(null);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setIsFormOpen(true);
+  };
+
+  const openEdit = (topic: Topic) => {
+    setEditTarget(topic);
+    setFormType(topic.type);
+    setFormName(topic.name);
+    setFormMethod(topic.method ?? "POST");
+    setFormUrl(topic.url ?? "");
+    setFormOrigins(parseOrigins(topic.origins));
+    setOriginInput("");
+    setFormUserId(topic.user_id ?? "");
+    setIsFormOpen(true);
   };
 
   const fetchTopics = useCallback(async () => {
@@ -105,13 +129,13 @@ export default function TopicPage() {
     fetchUsers();
   }, [fetchTopics, fetchUsers]);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formType) return;
     setIsSaving(true);
     try {
-      await topicService.create({
-        type: formType,
+      const payload = {
+        type: formType as TopicType,
         name: formName.trim(),
         ...(formType === "pub_to_api" && {
           method: formMethod,
@@ -121,12 +145,17 @@ export default function TopicPage() {
           origins: formOrigins,
         }),
         ...(formUserId && { user_id: formUserId }),
-      });
+      };
+      if (isEditMode) {
+        await topicService.update(editTarget.id, payload);
+      } else {
+        await topicService.create(payload);
+      }
       resetForm();
-      setIsAddOpen(false);
+      setIsFormOpen(false);
       fetchTopics();
     } catch (err) {
-      console.error("Failed to create topic:", err);
+      console.error("Failed to save topic:", err);
     } finally {
       setIsSaving(false);
     }
@@ -186,240 +215,23 @@ export default function TopicPage() {
             )}
           </p>
         </div>
-        <Dialog
-          open={isAddOpen}
-          onOpenChange={(o) => {
-            setIsAddOpen(o);
-            if (!o) resetForm();
-          }}
+        <button
+          onClick={openAdd}
+          className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25 shrink-0"
         >
-          <DialogTrigger asChild>
-            <button className="flex items-center gap-2 px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25 shrink-0">
-              <HiOutlinePlus className="w-4 h-4" />
-              <span>{language("Tambah Topik", "Add Topic")}</span>
-            </button>
-          </DialogTrigger>
-          <DialogContent
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {language("Tambah Topik Baru", "Add New Topic")}
-              </DialogTitle>
-              <DialogDescription>
-                {language(
-                  "Pilih tipe topik lalu isi detail yang diperlukan.",
-                  "Choose a topic type then fill in the required details.",
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAdd} className="space-y-4 mt-4">
-              {/* Type dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                  {language("Tipe Topik", "Topic Type")}
-                  <span className="text-neon-red ml-1">*</span>
-                </label>
-                <select
-                  value={formType}
-                  onChange={(e) => {
-                    setFormType(e.target.value as TopicType | "");
-                    setFormName("");
-                    setFormMethod("POST");
-                    setFormUrl("");
-                    setFormOrigins([]);
-                    setOriginInput("");
-                  }}
-                  className={inputClass}
-                  required
-                >
-                  <option value="">
-                    {language("-- Pilih tipe --", "-- Select type --")}
-                  </option>
-                  {TOPIC_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {language(t.labelId, t.labelEn)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Fields shown after type is selected */}
-              {formType && (
-                <>
-                  {/* Topic Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                      {language("Nama Topik", "Topic Name")}
-                      <span className="text-neon-red ml-1">*</span>
-                    </label>
-                    <input
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder={language(
-                        "contoh: sensor/suhu",
-                        "e.g. sensor/temperature",
-                      )}
-                      className={`${inputClass} font-mono`}
-                      required
-                    />
-                  </div>
-
-                  {/* User credential (optional) */}
-                  <div>
-                    <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                      {language("Kredensial Pengguna", "User Credential")}
-                      <span className="text-dark-400 text-xs ml-1">
-                        ({language("opsional", "optional")})
-                      </span>
-                    </label>
-                    <select
-                      value={formUserId}
-                      onChange={(e) => setFormUserId(e.target.value)}
-                      className={inputClass}
-                    >
-                      <option value="">
-                        {language(
-                          "-- Tanpa kredensial --",
-                          "-- No credential --",
-                        )}
-                      </option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.title} ({u.username})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Publish to API: method + url */}
-                  {formType === "pub_to_api" && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                          {language("Metode HTTP", "HTTP Method")}
-                          <span className="text-neon-red ml-1">*</span>
-                        </label>
-                        <select
-                          value={formMethod}
-                          onChange={(e) => setFormMethod(e.target.value)}
-                          className={inputClass}
-                          required
-                        >
-                          {HTTP_METHODS.map((m) => (
-                            <option key={m} value={m}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                          URL
-                          <span className="text-neon-red ml-1">*</span>
-                        </label>
-                        <input
-                          value={formUrl}
-                          onChange={(e) => setFormUrl(e.target.value)}
-                          placeholder="https://api.example.com/webhook"
-                          className={`${inputClass} font-mono`}
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {/* API to Subscribe: whitelist origins */}
-                  {formType === "api_to_sub" && (
-                    <div>
-                      <label className="block text-sm font-medium text-dark-200 mb-1.5">
-                        {language("Whitelist Origin", "Whitelist Origins")}
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          value={originInput}
-                          onChange={(e) => setOriginInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              addOrigin();
-                            }
-                          }}
-                          placeholder={language(
-                            "contoh: https://app.example.com",
-                            "e.g. https://app.example.com",
-                          )}
-                          className={`${inputClass} font-mono flex-1`}
-                        />
-                        <button
-                          type="button"
-                          onClick={addOrigin}
-                          className="px-3 py-2.5 bg-accent-500 hover:bg-accent-600 text-white rounded-xl transition-all shrink-0"
-                        >
-                          <HiOutlinePlus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {formOrigins.length > 0 && (
-                        <div className="mt-2 space-y-1.5">
-                          {formOrigins.map((origin, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 px-3 py-2 bg-dark-700/40 border border-dark-600/30 rounded-lg"
-                            >
-                              <span className="flex-1 text-sm font-mono text-foreground truncate">
-                                {origin}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => removeOrigin(idx)}
-                                className="text-dark-400 hover:text-neon-red transition-colors shrink-0"
-                              >
-                                <HiOutlineX className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              <DialogFooter className="pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddOpen(false);
-                    resetForm();
-                  }}
-                  className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
-                >
-                  {language("Batal", "Cancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving || !formType}
-                  className="px-6 py-2.5 bg-accent-500 hover:bg-accent-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25"
-                >
-                  {isSaving
-                    ? language("Menyimpan...", "Saving...")
-                    : language("Tambah", "Add")}
-                </button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+          <HiOutlinePlus className="w-4 h-4" />
+          <span>{language("Tambah Topik", "Add Topic")}</span>
+        </button>
       </div>
 
       {/* Topic list */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {isLoading ? (
-          <div className="flex justify-center py-12">
+          <div className="col-span-full flex justify-center py-12">
             <div className="w-5 h-5 border-2 border-dark-400/30 border-t-dark-300 rounded-full animate-spin" />
           </div>
         ) : topics.length === 0 ? (
-          <div className="text-sm text-dark-300 font-mono bg-dark-800/40 border border-dark-600/30 rounded-xl p-8 text-center">
+          <div className="col-span-full text-sm text-dark-300 font-mono bg-dark-800/40 border border-dark-600/30 rounded-xl p-8 text-center">
             {language(
               "Belum ada topik. Tambahkan topik pertama Anda.",
               "No topics yet. Add your first topic.",
@@ -478,26 +290,258 @@ export default function TopicPage() {
                       ))}
                     </div>
                   )}
-
-                  {/* Created at */}
-                  <p className="text-xs text-dark-400 font-mono mt-2">
-                    {formatDate(topic.created_at)}
-                  </p>
                 </div>
 
-                {/* Delete */}
-                <button
-                  onClick={() => setDeleteTarget(topic)}
-                  className="p-2 rounded-lg text-dark-400 hover:text-neon-red hover:bg-neon-red/5 transition-all shrink-0"
-                  title={language("Hapus", "Delete")}
-                >
-                  <HiOutlineTrash className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    onClick={() => openEdit(topic)}
+                    className="p-2 rounded-lg text-dark-400 hover:text-accent-400 hover:bg-accent-500/5 transition-all"
+                    title={language("Edit", "Edit")}
+                  >
+                    <HiOutlinePencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(topic)}
+                    className="p-2 rounded-lg text-dark-400 hover:text-neon-red hover:bg-neon-red/5 transition-all"
+                    title={language("Hapus", "Delete")}
+                  >
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Add/Edit dialog */}
+      <Dialog
+        open={isFormOpen}
+        onOpenChange={(o) => {
+          setIsFormOpen(o);
+          if (!o) resetForm();
+        }}
+      >
+        <DialogContent
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode
+                ? language("Edit Topik", "Edit Topic")
+                : language("Tambah Topik Baru", "Add New Topic")}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode
+                ? language(
+                    "Ubah detail topik yang diperlukan.",
+                    "Update the topic details as needed.",
+                  )
+                : language(
+                    "Pilih tipe topik lalu isi detail yang diperlukan.",
+                    "Choose a topic type then fill in the required details.",
+                  )}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            {/* Type dropdown */}
+            <div>
+              <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                {language("Tipe Topik", "Topic Type")}
+                <span className="text-neon-red ml-1">*</span>
+              </label>
+              <select
+                value={formType}
+                onChange={(e) => {
+                  setFormType(e.target.value as TopicType | "");
+                  setFormName("");
+                  setFormMethod("POST");
+                  setFormUrl("");
+                  setFormOrigins([]);
+                  setOriginInput("");
+                }}
+                className={inputClass}
+                required
+              >
+                <option value="">
+                  {language("-- Pilih tipe --", "-- Select type --")}
+                </option>
+                {TOPIC_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {language(t.labelId, t.labelEn)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Fields shown after type is selected */}
+            {formType && (
+              <>
+                {/* Topic Name */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                    {language("Nama Topik", "Topic Name")}
+                    <span className="text-neon-red ml-1">*</span>
+                  </label>
+                  <input
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder={language(
+                      "contoh: sensor/suhu",
+                      "e.g. sensor/temperature",
+                    )}
+                    className={`${inputClass} font-mono`}
+                    required
+                  />
+                </div>
+
+                {/* User credential (optional) */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                    {language("Kredensial Pengguna", "User Credential")}
+                    <span className="text-dark-400 text-xs ml-1">
+                      ({language("opsional", "optional")})
+                    </span>
+                  </label>
+                  <select
+                    value={formUserId}
+                    onChange={(e) => setFormUserId(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">
+                      {language(
+                        "-- Tanpa kredensial --",
+                        "-- No credential --",
+                      )}
+                    </option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.title} ({u.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Publish to API: method + url */}
+                {formType === "pub_to_api" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                        {language("Metode HTTP", "HTTP Method")}
+                        <span className="text-neon-red ml-1">*</span>
+                      </label>
+                      <select
+                        value={formMethod}
+                        onChange={(e) => setFormMethod(e.target.value)}
+                        className={inputClass}
+                        required
+                      >
+                        {HTTP_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                        URL
+                        <span className="text-neon-red ml-1">*</span>
+                      </label>
+                      <input
+                        value={formUrl}
+                        onChange={(e) => setFormUrl(e.target.value)}
+                        placeholder="https://api.example.com/webhook"
+                        className={`${inputClass} font-mono`}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* API to Subscribe: whitelist origins */}
+                {formType === "api_to_sub" && (
+                  <div>
+                    <label className="block text-sm font-medium text-dark-200 mb-1.5">
+                      {language("Whitelist Origin", "Whitelist Origins")}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        value={originInput}
+                        onChange={(e) => setOriginInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addOrigin();
+                          }
+                        }}
+                        placeholder={language(
+                          "contoh: https://app.example.com",
+                          "e.g. https://app.example.com",
+                        )}
+                        className={`${inputClass} font-mono flex-1`}
+                      />
+                      <button
+                        type="button"
+                        onClick={addOrigin}
+                        className="px-3 py-2.5 bg-accent-500 hover:bg-accent-600 text-white rounded-xl transition-all shrink-0"
+                      >
+                        <HiOutlinePlus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {formOrigins.length > 0 && (
+                      <div className="mt-2 space-y-1.5">
+                        {formOrigins.map((origin, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 px-3 py-2 bg-dark-700/40 border border-dark-600/30 rounded-lg"
+                          >
+                            <span className="flex-1 text-sm font-mono text-foreground truncate">
+                              {origin}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeOrigin(idx)}
+                              className="text-dark-400 hover:text-neon-red transition-colors shrink-0"
+                            >
+                              <HiOutlineX className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <DialogFooter className="pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFormOpen(false);
+                  resetForm();
+                }}
+                className="px-5 py-2.5 text-sm font-semibold text-dark-300 hover:text-foreground border border-dark-600/50 hover:border-dark-500/60 rounded-xl transition-all"
+              >
+                {language("Batal", "Cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || !formType}
+                className="px-6 py-2.5 bg-accent-500 hover:bg-accent-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-accent-500/25"
+              >
+                {isSaving
+                  ? language("Menyimpan...", "Saving...")
+                  : isEditMode
+                    ? language("Simpan", "Save")
+                    : language("Tambah", "Add")}
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation dialog */}
       <DialogDelete

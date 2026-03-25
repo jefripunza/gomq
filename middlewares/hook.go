@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"fmt"
+	"gomqtt/variable"
 	"log"
 
 	mqtt "github.com/mochi-mqtt/server/v2"
@@ -33,23 +35,59 @@ type ClientInfo struct {
 
 var clients = make(map[string]ClientInfo)
 
+// validateCredentials checks if the given username and password match a user in the database.
+// Only called when both username and password are non-empty.
+func validateCredentials(username, password string) error {
+	var count int64
+	if err := variable.Db.Table("users").Where("username = ? AND password = ?", username, password).Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to query users: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("invalid credentials for username=%s", username)
+	}
+	return nil
+}
+
+// validateTopicAccess checks if the given topic is associated with the user identified by username+password.
+// Only called when both username and password are non-empty.
+func validateTopicAccess(username, password, topicName string) error {
+	var count int64
+	if err := variable.Db.Table("topics").
+		Joins("JOIN users ON users.id = topics.user_id").
+		Where("users.username = ? AND users.password = ? AND topics.name = ?", username, password, topicName).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to query topic access: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("topic '%s' not allowed for username=%s", topicName, username)
+	}
+	return nil
+}
+
 // --------------------------------
 // ON CONNECT
 // --------------------------------
 func (h *MiddlewareHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
-	// check if username and password not empty
-	if string(pk.Connect.Username) != "" && string(pk.Connect.Password) != "" {
-		// check if username and password is ok
+	username := string(pk.Connect.Username)
+	password := string(pk.Connect.Password)
+
+	// validate credentials only when both are provided
+	if username != "" && password != "" {
+		if err := validateCredentials(username, password); err != nil {
+			log.Printf("❌ [CONNECT] client_id=%s auth failed: %s\n", cl.ID, err.Error())
+			return fmt.Errorf("authentication failed")
+		}
 	}
+
 	log.Printf("🔌 [CONNECT] client_id=%s username=%s password=%s remote_addr=%s\n",
 		cl.ID,
-		string(pk.Connect.Username),
-		string(pk.Connect.Password),
+		username,
+		password,
 		cl.Net.Remote,
 	)
 	clients[cl.ID] = ClientInfo{
-		Username: string(pk.Connect.Username),
-		Password: string(pk.Connect.Password),
+		Username: username,
+		Password: password,
 	}
 	return nil
 }
@@ -75,6 +113,13 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 		return pk
 	}
 	for _, sub := range pk.Filters {
+		// validate topic access only when both username and password are provided
+		if clientInfo.Username != "" && clientInfo.Password != "" {
+			if err := validateTopicAccess(clientInfo.Username, clientInfo.Password, sub.Filter); err != nil {
+				log.Printf("❌ [SUBSCRIBE] client_id=%s topic access denied: %s\n", cl.ID, err.Error())
+				continue
+			}
+		}
 		log.Printf("📥 [SUBSCRIBE] client_id=%s username=%s password=%s topic=%s qos=%d\n",
 			cl.ID,
 			clientInfo.Username,
@@ -108,6 +153,15 @@ func (h *MiddlewareHook) OnPublish(cl *mqtt.Client, pk packets.Packet) (packets.
 		log.Printf("❌ [PUBLISH] client_id=%s not found\n", cl.ID)
 		return pk, nil
 	}
+
+	// validate topic access only when both username and password are provided
+	if clientInfo.Username != "" && clientInfo.Password != "" {
+		if err := validateTopicAccess(clientInfo.Username, clientInfo.Password, pk.TopicName); err != nil {
+			log.Printf("❌ [PUBLISH] client_id=%s topic access denied: %s\n", cl.ID, err.Error())
+			return pk, fmt.Errorf("topic access denied")
+		}
+	}
+
 	log.Printf("📨 [PUBLISH] client_id=%s username=%s password=%s topic=%s qos=%d payload=%s\n",
 		cl.ID,
 		clientInfo.Username,

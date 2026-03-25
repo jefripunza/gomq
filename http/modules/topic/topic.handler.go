@@ -87,6 +87,86 @@ func Create(c *fiber.Ctx) error {
 	return dto.OK(c, "Topic entry created successfully", entry)
 }
 
+type UpdateTopicRequest struct {
+	Type    string   `json:"type"`
+	Name    string   `json:"name"`
+	Method  *string  `json:"method,omitempty"`
+	URL     *string  `json:"url,omitempty"`
+	Origins []string `json:"origins,omitempty"`
+	UserID  *string  `json:"user_id,omitempty"`
+}
+
+func Update(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return dto.BadRequest(c, "ID is required", nil)
+	}
+
+	var req UpdateTopicRequest
+	if err := c.BodyParser(&req); err != nil {
+		return dto.BadRequest(c, "Invalid request body", nil)
+	}
+
+	var entry Topic
+	if err := variable.Db.Where("id = ?", id).First(&entry).Error; err != nil {
+		return dto.NotFound(c, "Topic entry not found", nil)
+	}
+
+	if req.Type != "pub_to_sub" && req.Type != "pub_to_api" && req.Type != "api_to_sub" {
+		return dto.BadRequest(c, "Type must be 'pub_to_sub', 'pub_to_api', or 'api_to_sub'", nil)
+	}
+	if req.Name == "" {
+		return dto.BadRequest(c, "Name is required", nil)
+	}
+
+	entry.Type = req.Type
+	entry.Name = req.Name
+	entry.Method = nil
+	entry.URL = nil
+	entry.Origins = nil
+	entry.UserID = nil
+
+	if req.Type == "pub_to_api" {
+		if req.Method == nil || *req.Method == "" {
+			return dto.BadRequest(c, "Method is required for Publish to API", nil)
+		}
+		if req.URL == nil || *req.URL == "" {
+			return dto.BadRequest(c, "URL is required for Publish to API", nil)
+		}
+		entry.Method = req.Method
+		entry.URL = req.URL
+	}
+
+	if req.Type == "api_to_sub" {
+		if len(req.Origins) > 0 {
+			originsJSON, err := json.Marshal(req.Origins)
+			if err != nil {
+				return dto.InternalServerError(c, "Failed to encode origins", nil)
+			}
+			originsStr := string(originsJSON)
+			entry.Origins = &originsStr
+		}
+	}
+
+	if req.UserID != nil && *req.UserID != "" {
+		parsed, err := uuid.Parse(*req.UserID)
+		if err != nil {
+			return dto.BadRequest(c, "Invalid user_id format", nil)
+		}
+		var existingUser user.User
+		if err := variable.Db.Where("id = ?", parsed).First(&existingUser).Error; err != nil {
+			return dto.BadRequest(c, "User not found", nil)
+		}
+		entry.UserID = &parsed
+	}
+
+	if err := variable.Db.Save(&entry).Error; err != nil {
+		return dto.InternalServerError(c, "Failed to update topic entry", nil)
+	}
+
+	return dto.OK(c, "Topic entry updated successfully", entry)
+}
+
 func Delete(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if id == "" {
