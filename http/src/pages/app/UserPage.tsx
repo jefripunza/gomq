@@ -4,6 +4,8 @@ import {
   HiOutlineTrash,
   HiOutlineEye,
   HiOutlineEyeOff,
+  HiClipboardCopy,
+  HiOutlineClipboardCopy,
 } from "react-icons/hi";
 import {
   Dialog,
@@ -100,6 +102,14 @@ export default function UserPage() {
       }
       return next;
     });
+  };
+
+  const copyText = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+    }
   };
 
   return (
@@ -251,6 +261,13 @@ export default function UserPage() {
                       <span className="font-mono text-dark-200">
                         {user.username}
                       </span>
+                      <button
+                        onClick={() => copyText(user.username)}
+                        className="text-[11px] font-medium text-dark-400 hover:text-foreground transition-colors"
+                        title={language("Salin username", "Copy username")}
+                      >
+                        <HiOutlineClipboardCopy className="w-4 h-4" />
+                      </button>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-dark-400 w-16 shrink-0">
@@ -270,6 +287,13 @@ export default function UserPage() {
                         ) : (
                           <HiOutlineEye className="w-3.5 h-3.5" />
                         )}
+                      </button>
+                      <button
+                        onClick={() => copyText(user.password)}
+                        className="text-[11px] font-medium text-dark-400 hover:text-foreground transition-colors"
+                        title={language("Salin password", "Copy password")}
+                      >
+                        <HiOutlineClipboardCopy className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

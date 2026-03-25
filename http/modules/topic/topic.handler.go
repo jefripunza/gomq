@@ -3,6 +3,7 @@ package topic
 import (
 	"encoding/json"
 	"gomqtt/http/dto"
+	"gomqtt/http/modules/user"
 	"gomqtt/variable"
 
 	"github.com/gofiber/fiber/v2"
@@ -70,6 +71,11 @@ func Create(c *fiber.Ctx) error {
 		parsed, err := uuid.Parse(*req.UserID)
 		if err != nil {
 			return dto.BadRequest(c, "Invalid user_id format", nil)
+		}
+		// Check if user exists
+		var existingUser user.User
+		if err := variable.Db.Where("id = ?", parsed).First(&existingUser).Error; err != nil {
+			return dto.BadRequest(c, "User not found", nil)
 		}
 		entry.UserID = &parsed
 	}

@@ -67,6 +67,15 @@ func Delete(c *fiber.Ctx) error {
 		return dto.NotFound(c, "User entry not found", nil)
 	}
 
+	// Check if any topic uses this user
+	var topicCount int64
+	if err := variable.Db.Table("topics").Where("user_id = ?", id).Count(&topicCount).Error; err != nil {
+		return dto.InternalServerError(c, "Failed to check topic usage", nil)
+	}
+	if topicCount > 0 {
+		return dto.BadRequest(c, "Cannot delete user: still used by one or more topics", nil)
+	}
+
 	if err := variable.Db.Delete(&entry).Error; err != nil {
 		return dto.InternalServerError(c, "Failed to delete user entry", nil)
 	}
