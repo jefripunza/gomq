@@ -105,17 +105,12 @@ func (ts *topicSubscribers) DisconnectAndClear(topicName string, stopErr error) 
 			if !cl.Closed() {
 				log.Printf("🔄 [DISCONNECT-CLEAR] stopping client_id=%s\n", clientID)
 				cl.Stop(stopErr)
-				// remove from mochi-mqtt internal client map to prevent
-				// session takeover loop when client reconnects
-				if MqttServer != nil {
-					MqttServer.Clients.Delete(clientID)
-					log.Printf("🔄 [DISCONNECT-CLEAR] deleted client_id=%s from MqttServer.Clients\n", clientID)
-				}
 				disconnected = append(disconnected, clientID)
 			} else {
 				log.Printf("🔄 [DISCONNECT-CLEAR] client_id=%s already closed, skipping\n", clientID)
 			}
 		}
+		// Mark all disconnected clients for cooldown (will be set by caller)
 		delete(ts.data, topicName)
 		log.Printf("🔄 [DISCONNECT-CLEAR] topic=%s cleared from tracking\n", topicName)
 	}

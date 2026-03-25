@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"gomqtt/variable"
 	"log"
+	"sync"
+	"time"
 
 	mqtt "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/packets"
@@ -34,6 +36,39 @@ type ClientInfo struct {
 }
 
 var clients = make(map[string]ClientInfo)
+
+// Track force-disconnected clients with cooldown to prevent reconnect loop
+var (
+	disconnectCooldown     = make(map[string]time.Time)
+	disconnectCooldownLock sync.RWMutex
+	cooldownDuration       = 5 * time.Second // reject reconnect for 5 seconds after force disconnect
+)
+
+// SetDisconnectCooldown marks a client as recently force-disconnected
+func SetDisconnectCooldown(clientID string) {
+	disconnectCooldownLock.Lock()
+	defer disconnectCooldownLock.Unlock()
+	disconnectCooldown[clientID] = time.Now()
+	log.Printf("⏳ [COOLDOWN] client_id=%s marked for cooldown (5s)\n", clientID)
+}
+
+// IsInCooldown checks if a client is still in cooldown period
+func IsInCooldown(clientID string) bool {
+	disconnectCooldownLock.RLock()
+	defer disconnectCooldownLock.RUnlock()
+	if t, ok := disconnectCooldown[clientID]; ok {
+		if time.Since(t) < cooldownDuration {
+			return true
+		}
+		// cooldown expired, clean up
+		go func() {
+			disconnectCooldownLock.Lock()
+			delete(disconnectCooldown, clientID)
+			disconnectCooldownLock.Unlock()
+		}()
+	}
+	return false
+}
 
 // validateCredentials checks if the given username and password match a user in the database.
 // Only called when both username and password are non-empty.
@@ -88,6 +123,12 @@ func (h *MiddlewareHook) OnConnect(cl *mqtt.Client, pk packets.Packet) error {
 	username := string(pk.Connect.Username)
 	password := string(pk.Connect.Password)
 
+	// check if client is in cooldown period (recently force-disconnected)
+	// if IsInCooldown(cl.ID) {
+	// 	log.Printf("⏳ [CONNECT] client_id=%s rejected - in cooldown period after force disconnect\n", cl.ID)
+	// 	return fmt.Errorf("connection rejected: please wait before reconnecting")
+	// }
+
 	// validate credentials only when both are provided
 	if username != "" && password != "" {
 		if err := validateCredentials(username, password); err != nil {
@@ -136,11 +177,6 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 		return pk
 	}
 
-	// track all subscriptions in MqttTopicSubs for force disconnect support
-	for _, sub := range pk.Filters {
-		variable.MqttTopicSubs.Subscribe(sub.Filter, cl.ID, cl)
-	}
-
 	validFilters := make([]packets.Subscription, 0, len(pk.Filters))
 	for _, sub := range pk.Filters {
 		// validate topic access only when both username and password are provided
@@ -150,6 +186,8 @@ func (h *MiddlewareHook) OnSubscribe(cl *mqtt.Client, pk packets.Packet) packets
 				continue
 			}
 		}
+		// only track valid subscriptions for force disconnect support
+		variable.MqttTopicSubs.Subscribe(sub.Filter, cl.ID, cl)
 		log.Printf("📥 [SUBSCRIBE] client_id=%s username=%s password=%s topic=%s qos=%d\n",
 			cl.ID,
 			clientInfo.Username,

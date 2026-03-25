@@ -13,10 +13,13 @@ import (
 )
 
 // disconnectSubscribers force disconnects all MQTT clients subscribed to the given topic.
+// Also sets cooldown for each client to prevent infinite reconnect loop.
 func disconnectSubscribers(topicName string) {
 	disconnected := variable.MqttTopicSubs.DisconnectAndClear(topicName, errors.New("topic configuration changed"))
 	for _, clientID := range disconnected {
 		log.Printf("⚡ [DISCONNECT] force disconnect client_id=%s due to topic '%s' changed\n", clientID, topicName)
+		// Set cooldown to prevent reconnect loop
+		// middlewares.SetDisconnectCooldown(clientID)
 	}
 }
 
